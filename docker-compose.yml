@@ -1,0 +1,22 @@
+services:
+  proddev-engine:
+    build: .
+    container_name: proddev-engine
+    restart: "no"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./.env:/app/.env:ro
+      - ../shared-infra/storage:/app/shared/storage:ro
+    environment:
+      - TZ=Asia/Shanghai
+    working_dir: /app
+    command: sh -c "python -m http.server ${PORT:-8001} >/dev/null 2>&1 & python -m src.main"
+    ports:
+      - "${PORT:-8001}:${PORT:-8001}"
+    networks:
+      - trinity-net
+
+networks:
+  trinity-net:
+    external: true

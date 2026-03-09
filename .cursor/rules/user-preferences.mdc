@@ -1,0 +1,33 @@
+---
+description: 用户交互偏好与编码标准
+alwaysApply: true
+---
+
+# 用户偏好与编码标准
+
+## 语言
+- 始终用**简体中文**回复
+
+## 风格
+- 回复简洁直接，不废话
+- 涉及部署默认使用 Docker / docker-compose
+- 代码注释用中文
+
+## 角色映射
+提到以下名称时，AI 应自动关联到对应系统和模型：
+- "数据采集官" / "The Harvester" → System A, Gemini 2.5 Flash
+- "舆情管理官" / "The Sanitizer" → System A, DeepSeek-V4
+- "多头分析官" / "Bullish Analyst" → System A, Gemini 2.5 Pro
+- "战略承接官" / "Strategy Anchor" → System A, GPT-5
+- "量化分析官" / "Quant Analyst" → System B, Claude 4.6 Sonnet
+- "空头分析官" / "Skeptical Analyst" → System B, Claude 4.6 Sonnet
+- "压力测试官" / "Stress Tester" → System C, Gemini 2.5 Pro (Thinking)
+- "反对派观察者" / "Devil's Advocate" → System C, GPT-5 (Thinking)
+- "首席决策官" / "CDO" → 各系统最终裁决角色
+
+## 项目约定
+- Python 3.11+
+- 异步优先（asyncio / httpx）
+- 配置文件用 YAML
+- 环境变量通过 .env 管理，敏感信息不入库
+- 券商后端通过 config/broker.yaml 的 active_broker 字段切换

@@ -1,0 +1,18 @@
+# Trinity Guard — 券商后端配置
+# 通过 active_broker 字段切换执行后端
+
+active_broker: local_paper  # 可选: local_paper / ths / dfcf
+
+brokers:
+  local_paper:
+    data_dir: "data/trades"
+
+  ths:
+    exe_path: "${THS_EXE_PATH}"
+    user: "${THS_USER}"
+    password: "${THS_PASSWORD}"
+    comm_password: "${THS_COMM_PASSWORD}"
+
+  dfcf:
+    user: "${DFCF_USER}"
+    password: "${DFCF_PASSWORD}"

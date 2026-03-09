@@ -1,0 +1,194 @@
+# Trinity Guard — LLM 模型路由配置（博弈终版）
+# 所有模型通过 one-api 统一网关调用
+#
+# 核心原则：
+#   1. CDO 必须和下属不同厂商（Claude/GPT5T/GeminiProT 三家三风格）
+#   2. 每系统至少 3 厂商
+#   3. 对抗角色（B-4/C-3）用擅长找漏洞的模型
+#   4. 数据采集角色尽量代码化，仅新闻标注用 Flash
+#   5. 单厂商宕机不瘫痪任何系统的 CDO
+
+gateway:
+  base_url: "http://localhost:3888/v1"
+  api_key: "${ONE_API_KEY}"
+
+# 数据域 staleness 阈值（秒）
+staleness_thresholds:
+  market_data:
+    warning: 180
+    degraded: 300
+  news_event:
+    warning: 600
+    degraded: 1200
+  regulatory:
+    warning: 1800
+    degraded: 3600
+  shareholder:
+    warning: 3600
+    degraded: 7200
+
+models:
+  # ── System A（政策高度）──────────────────────
+  # A-1 数据采集官：代码采集 + Flash 做新闻标注
+  gemini_flash:
+    name: "gemini-2.5-flash"
+    roles: ["harvester_a", "data_probe_c"]
+    max_tokens: 4096
+    data_domain: "news_event"
+
+  # A-2 舆情管理官
+  deepseek_v4:
+    name: "deepseek-v4"
+    roles: ["sanitizer", "harvester_b", "admin_observer"]
+    max_tokens: 4096
+    data_domain: "regulatory"
+
+  # A-3 多头分析官
+  gpt5_standard:
+    name: "gpt-5"
+    roles: ["bullish_analyst"]
+    max_tokens: 8192
+    data_domain: "news_event"
+
+  # A-4 战略承接官
+  gemini_pro:
+    name: "gemini-2.5-pro"
+    roles: ["strategy_anchor", "trend_analyst"]
+    max_tokens: 8192
+    data_domain: "news_event"
+
+  # CDO-A（保守裁判制衡乐观团队）
+  claude_sonnet:
+    name: "claude-4.6-sonnet"
+    roles: ["cdo_a", "quant_analyst"]
+    max_tokens: 8192
+    data_domain: "market_data"
+
+  # ── System B（量化执行）──────────────────────
+  # B-1 数据采集官-B：纯代码（无 LLM）
+  # B-2 趋势分析官：gemini_pro（已在上方 roles 中）
+  # B-3 量化分析官：代码引擎 + Claude 解读（已在上方 roles 中）
+  # B-4 空头分析官
+  deepseek_r1:
+    name: "deepseek-r1"
+    roles: ["skeptical_analyst", "devils_advocate_r1"]
+    max_tokens: 8192
+    data_domain: "market_data"
+
+  # CDO-B（和下属全不同厂商）
+  gpt5_thinking:
+    name: "gpt-5"
+    roles: ["cdo_b", "stress_tester"]
+    max_tokens: 16384
+    thinking: true
+    data_domain: "market_data"
+
+  # ── System C（对抗审计）──────────────────────
+  # C-1 数据探查官：代码采集 + Flash 做异常标注（已在上方 roles 中）
+  # C-2 行政观测官：deepseek_v4（已在上方 roles 中）
+  # C-3 反对派观察者：deepseek_r1（已在上方 roles 中）
+  # C-4 压力测试官：历史引擎 + GPT5T 解读（已在上方 roles 中）
+  # CDO-C（中性法官，不再是检察官）
+  gemini_pro_thinking:
+    name: "gemini-2.5-pro"
+    roles: ["cdo_c"]
+    max_tokens: 16384
+    thinking: true
+    data_domain: "market_data"
+
+# 厂商分布总览（26条博弈决策后终版）：
+#   Google  (Gemini):  Flash×2 + Pro×2 + ProThinking×1 = 5 角色
+#   DeepSeek:          V4×3 + R1×2 = 5 角色
+#   OpenAI  (GPT):     Standard×1 + Thinking×2 = 3 角色
+#   Anthropic (Claude): Sonnet×2 = 2 角色
+#
+# CDO 厂商：Claude(A) / GPT5T(B) / GeminiProT(C) = 3家3风格
+# 代码化角色：A-1部分 / B-1全部 / C-1部分 / B-3部分 / C-4部分
+
+# ── 分层共享-局部化建模路由 ──────────────────────────────────────
+# 架构：共享底层（市场状态编码）+ 独立头部（每个盈利目标独立权重）
+#
+# L1 宪法层（硬风控，不可学习）：
+#   - 由 risk_control.py 直接执行，不经过 LLM
+#   - 阈值：单仓 ≤20%、日回撤 ≤-3%、连亏3日自动停机、14:50截单
+#
+# L2a 策略规则层（P2参数，回测验证后更新）：
+#   - MSI/CGI 阈值、仓位上限、阶段权重
+#   - 存储：config/p2_params.yaml
+#
+# L2b 策略实例层（历史复盘固化的规则，不可在线修改）：
+#   - alpha_momentum.py / vol_compression.py 等策略模块
+#   - 晋升/降级/退役由 daily_review.py 的 EvoAction 触发
+#
+# L3 权重学习层（P3参数，模拟盘持续进化）：
+#   - factor_engine.py → FactorBundle → weight_model.py → ScoreResult
+#   - 三目标独立权重：t3(+3%) / t5(+5%) / t8(+8%)
+#   - 存储：data/weights/weight_model.json（在线滚动更新）
+#   - 进化反馈：daily_review.py → WeightModel.batch_update()
+
+weight_model:
+  weights_path: "data/weights/weight_model.json"
+  lr: 0.01
+  l2_lambda: 0.001
+
+  profit_targets:
+    t3:
+      label: "+3%"
+      min_score_threshold: 0.30
+      session_multipliers:
+        pre_open: 1.0
+        open_session: 1.0
+        mid_session: 0.8
+        close_session: 0.9
+    t5:
+      label: "+5%"
+      min_score_threshold: 0.45
+      session_multipliers:
+        pre_open: 0.9
+        open_session: 1.0
+        mid_session: 0.9
+        close_session: 1.0
+    t8:
+      label: "+8%"
+      min_score_threshold: 0.60
+      session_multipliers:
+        pre_open: 0.8
+        open_session: 1.0
+        mid_session: 1.0
+        close_session: 1.0
+
+  target_selection:
+    msi_attack_cgi_healthy: "t8"
+    msi_attack_other: "t5"
+    msi_watch: "t3"
+    msi_defend: "t3"
+
+  factor_categories:
+    A_sentiment:
+      weight_range: [-0.10, 0.10]
+      shared: true
+    B_technical:
+      weight_range: [-0.10, 0.10]
+      shared: true
+    C_capital_flow:
+      weight_range: [-0.05, 0.10]
+      shared: true
+    D_manipulation:
+      weight_range: [-0.10, 0.00]
+      shared: true
+    E_sector:
+      weight_range: [0.00, 0.10]
+      shared: true
+    F_execution:
+      weight_range: [-0.10, 0.06]
+      shared: false
+
+  evolution:
+    save_interval_updates: 100
+    promote_win_rate: 0.60
+    promote_pl_ratio: 2.0
+    promote_min_trades: 10
+    demote_win_rate: 0.40
+    demote_pl_ratio: 0.8
+    demote_min_trades: 5
+    retire_consecutive_demote: 3

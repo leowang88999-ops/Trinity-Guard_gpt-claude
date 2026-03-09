@@ -1,0 +1,31 @@
+# LiteLLM 代理配置 — Satori + OpenRouter
+# 用于 Cursor 等客户端统一调用
+# 启动: litellm --config litellm/config.yaml
+
+model_list:
+  # ── Satori ─────────────────────────────────────
+  - model_name: claude-satori
+    litellm_params:
+      model: openai/claude-sonnet-4.6
+      api_base: "https://api.satori.dev/v1"
+      api_key: os.environ/SATORI_API_KEY
+
+  # ── OpenRouter ─────────────────────────────────
+  - model_name: claude-openrouter
+    litellm_params:
+      model: openrouter/anthropic/claude-4.6-sonnet
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-opus-openrouter
+    litellm_params:
+      model: openrouter/anthropic/claude-4.6-opus
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: gpt-4o-openrouter
+    litellm_params:
+      model: openrouter/openai/gpt-4o
+      api_key: os.environ/OPENROUTER_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  drop_params: true
